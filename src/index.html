@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>入库系统 - 多环境登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #050c1b 0%, #0a2448 50%, #061530 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0,160,255,0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,160,255,0.08) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .login-card {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 460px;
+            background: rgba(8, 18, 40, 0.75);
+            border: 1px solid rgba(0, 170, 255, 0.25);
+            border-radius: 16px;
+            padding: 48px 32px;
+            backdrop-filter: blur(10px);
+            box-shadow: 
+                0 0 30px rgba(0, 140, 255, 0.18),
+                inset 0 0 60px rgba(0, 120, 255, 0.05);
+        }
+
+        .card-title {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .card-title h1 {
+            font-size: clamp(24px, 5vw, 32px);
+            color: #ffffff;
+            letter-spacing: 2px;
+            text-shadow: 0 0 12px #00a0ff;
+            margin-bottom: 10px;
+        }
+        .card-title p {
+            color: #94c8f0;
+            font-size: 15px;
+            opacity: 0.8;
+        }
+
+        /* 选择器 - 优化动画与高亮 */
+        .custom-select {
+            position: relative;
+            margin-bottom: 24px;
+        }
+        .select-trigger {
+            width: 100%;
+            padding: 18px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 170, 255, 0.3);
+            background: rgba(6, 14, 32, 0.8);
+            color: #fff;
+            font-size: 18px;
+            outline: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .select-trigger:hover {
+            border-color: #00a0ff;
+            box-shadow: 0 0 12px rgba(0, 160,255,0.25);
+        }
+        .select-trigger.active {
+            border-color: #00a0ff;
+            box-shadow: 0 0 16px rgba(0, 160,255,0.35);
+        }
+        .select-arrow {
+            transition: transform 0.3s ease;
+        }
+        .select-trigger.active .select-arrow {
+            transform: rotate(180deg);
+        }
+
+        .select-options {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: rgba(10, 26, 54, 0.97);
+            border: 1px solid rgba(0, 170, 255, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 99;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        .select-options.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .select-option {
+            padding: 16px;
+            color: #e0f0ff;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .select-option:hover {
+            background: rgba(0, 140, 255, 0.15);
+            color: #fff;
+            padding-left: 22px;
+        }
+        .select-option.active {
+            background: rgba(0, 140, 255, 0.28);
+            color: #00b4ff;
+            font-weight: 500;
+            border-left: 3px solid #00a0ff;
+        }
+
+        /* 登录按钮 - 绿色系 */
+        .login-btn {
+            width: 100%;
+            padding: 18px 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 19px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(90deg, #22c58f, #26e498);
+            color: #fff;
+            box-shadow: 0 0 16px rgba(34, 220, 140, 0.4);
+        }
+        .login-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 28px rgba(34, 220, 140, 0.65);
+        }
+
+        .tip-text {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 13px;
+            color: #7aa3c9;
+            line-height: 1.6;
+        }
+
+        /* 设置按钮 */
+        .setting-btn {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(0, 170, 255, 0.15);
+            border: 1px solid rgba(0, 170, 255, 0.4);
+            color: #00a0ff;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 999;
+            backdrop-filter: blur(4px);
+        }
+        .setting-btn:hover {
+            background: rgba(0, 170, 255, 0.25);
+            transform: rotate(60deg);
+        }
+
+        /* 弹窗 - 全屏适配修复 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 15px; /* 小屏边距 */
+        }
+        .modal.show {
+            display: flex;
+        }
+        .modal-content {
+            width: 100%;
+            max-width: 520px;
+            background: rgba(8, 18, 40, 0.95);
+            border: 1px solid rgba(0, 170, 255, 0.3);
+            border-radius: 16px;
+            padding: 24px; /* 内边距统一 */
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 40px rgba(0, 140, 255, 0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-title {
+            color: #fff;
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 8px #00a0ff;
+        }
+
+        /* 环境项 - 修复小屏变形：弹性布局 + 最小宽度 */
+        .env-item {
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap; /* 小屏自动换行 */
+            gap: 8px;
+            align-items: center;
+        }
+        .env-item input {
+            flex: 1;
+            min-width: 120px; /* 防止输入框被挤扁 */
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(0,170,255,0.3);
+            border-radius: 6px;
+            color: #fff;
+            outline: none;
+        }
+        .env-item input:focus {
+            border-color: #00a0ff;
+        }
+        .env-item .del-btn {
+            background: #ff4560;
+            color: #fff;
+            border: none;
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .add-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0,170,255,0.2);
+            color: #fff;
+            border: 1px dashed rgba(0,170,255,0.4);
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        /* 弹窗按钮 - 小屏不挤压 */
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .btn-cancel {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .btn-save {
+            background: linear-gradient(90deg, #22c58f, #26e498);
+            color: #fff;
+        }
+
+        /* 提示 */
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%) translateY(50px);
+            background: rgba(0, 170, 255, 0.15);
+            border: 1px solid rgba(0, 170, 255, 0.4);
+            color: #00a0ff;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 0 15px rgba(0, 160,255,0.2);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            z-index: 99999;
+            white-space: nowrap;
+        }
+        .toast.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-card">
+        <div class="card-title">
+            <h1>PDA入库系统</h1>
+            <p>请选择运行环境</p>
+        </div>
+
+        <div class="custom-select">
+            <div class="select-trigger" id="selectTrigger">
+                <span id="selectedText">请选择环境</span>
+                <span class="select-arrow">▼</span>
+            </div>
+            <div class="select-options" id="selectOptions"></div>
+        </div>
+
+        <button class="login-btn" onclick="goLogin()">登 录</button>
+        <div class="tip-text">当前登录地址：<span id="currentUrl">-</span></div>
+    </div>
+
+    <div class="setting-btn" onclick="openConfig()">⚙️</div>
+
+    <!-- 配置弹窗 -->
+    <div class="modal" id="configModal">
+        <div class="modal-content">
+            <h3 class="modal-title">环境配置</h3>
+            <div id="envList"></div>
+            <button class="add-btn" onclick="addEnv()">+ 添加环境</button>
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" onclick="closeConfig()">取消</button>
+                <button class="btn btn-save" onclick="saveConfig()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 默认多环境
+        let envList = [
+            { name: "正式环境", url: "https://mom.rebo-group.com/pda" },
+            { name: "UAT测试环境", url: "http://10.109.13.139:91/pda" }
+        ];
+
+        let selectedEnv = null;
+        const envOptions = document.getElementById("selectOptions");
+        const selectedText = document.getElementById("selectedText");
+        const currentUrlEl = document.getElementById("currentUrl");
+        const toast = document.getElementById("toast");
+
+        // 初始化
+        window.onload = function () {
+            const local = localStorage.getItem("envList");
+            if (local) envList = JSON.parse(local);
+            
+            loadLastSelectedEnv();
+            renderSelect();
+            updateTip();
+            bindSelectEvents();
+        };
+
+        // 渲染选择器
+        function renderSelect() {
+            envOptions.innerHTML = "";
+            envList.forEach((env, idx) => {
+                let div = document.createElement("div");
+                let isActive = selectedEnv && selectedEnv.name === env.name && selectedEnv.url === env.url;
+                div.className = "select-option" + (isActive ? " active" : "");
+                div.dataset.index = idx;
+                div.innerText = env.name;
+                envOptions.appendChild(div);
+            });
+            selectedText.innerText = selectedEnv ? selectedEnv.name : (envList[0]?.name || "请选择环境");
+        }
+
+        // 绑定选择事件
+        function bindSelectEvents() {
+            document.querySelectorAll(".select-option").forEach(item => {
+                item.addEventListener("click", () => {
+                    const idx = item.dataset.index;
+                    selectedEnv = envList[idx];
+                    selectedText.innerText = selectedEnv.name;
+                    
+                    saveLastSelectedEnv(selectedEnv);
+                    
+                    document.querySelectorAll(".select-option").forEach(i => i.classList.remove("active"));
+                    item.classList.add("active");
+                    
+                    updateTip();
+                    
+                    document.getElementById("selectTrigger").classList.remove("active");
+                    envOptions.classList.remove("show");
+                });
+            });
+        }
+
+        // 更新提示
+        function updateTip() {
+            currentUrlEl.innerText = selectedEnv ? selectedEnv.url : "-";
+        }
+
+        // 保存记忆
+        function saveLastSelectedEnv(env) {
+            localStorage.setItem("lastSelectedEnv", JSON.stringify(env));
+        }
+
+        // 加载记忆
+        function loadLastSelectedEnv() {
+            const last = localStorage.getItem("lastSelectedEnv");
+            if (last) {
+                selectedEnv = JSON.parse(last);
+            } else {
+                selectedEnv = envList[0];
+            }
+        }
+
+        // 打开配置
+        function openConfig() {
+            renderConfigList();
+            document.getElementById("configModal").classList.add("show");
+        }
+        function closeConfig() {
+            document.getElementById("configModal").classList.remove("show");
+        }
+
+        // 渲染配置页
+        function renderConfigList() {
+            const container = document.getElementById("envList");
+            container.innerHTML = "";
+            envList.forEach((item, i) => {
+                const html = `
+                <div class="env-item" data-index="${i}">
+                    <input placeholder="环境名称" value="${item.name}" onchange="updateEnvName(this,${i})">
+                    <input placeholder="地址" value="${item.url}" onchange="updateEnvUrl(this,${i})">
+                    <button class="del-btn" onclick="delEnv(${i})">删除</button>
+                </div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        function updateEnvName(el, i) { envList[i].name = el.value; }
+        function updateEnvUrl(el, i) { envList[i].url = el.value; }
+        function addEnv() { envList.push({ name: "新环境", url: "" }); renderConfigList(); }
+        function delEnv(i) { envList.splice(i, 1); renderConfigList(); }
+
+        // 保存配置
+        function saveConfig() {
+            localStorage.setItem("envList", JSON.stringify(envList));
+            selectedEnv = envList[0];
+            saveLastSelectedEnv(selectedEnv);
+            renderSelect();
+            bindSelectEvents();
+            updateTip();
+            closeConfig();
+            showToast("✅ 环境配置保存成功");
+        }
+
+        // 点击选择
+        document.getElementById("selectTrigger").addEventListener("click", (e) => {
+            e.stopPropagation();
+            document.getElementById("selectTrigger").classList.toggle("active");
+            envOptions.classList.toggle("show");
+        });
+        document.addEventListener("click", () => {
+            document.getElementById("selectTrigger").classList.remove("active");
+            envOptions.classList.remove("show");
+        });
+
+        // 登录
+        function goLogin() {
+            if (selectedEnv && selectedEnv.url) {
+                window.location.href = selectedEnv.url;
+            } else {
+                showToast("请选择有效的环境地址");
+            }
+        }
+
+        // 提示
+        function showToast(msg) {
+            toast.innerText = msg;
+            toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 2200);
+        }
+    </script>
+</body>
+</html>
